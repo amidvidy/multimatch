@@ -9,6 +9,9 @@ class OrderBookTest(unittest.TestCase):
         self.trades = []
         self.book = OrderBook(lambda trade: self.trades.append(trade))
 
+    def tearDown(self):
+        self.book = None
+
     def numOrdersExecuted(self):
         return len(self.trades)
 
@@ -61,6 +64,33 @@ class OrderBookTest(unittest.TestCase):
         self.assertEquals(buy.quantity, trade.quantity)
         self.assertEquals(sell.price, trade.price)
         self.assertEquals(buy.price, trade.price)
+
+        # make sure all the orders were cleared out
+        self.assertFalse(self.book.has_bids(), "The book should be empty")
+        self.assertFalse(self.book.has_asks(), "The book should be empty")
+
+    def testMatchPartial(self):
+        # One seller, multiple buyers. All orders should be matched.
+        sell = LimitSellOrder(100, "BTC/USD", 1, "gavin")
+        buy1 = LimitBuyOrder(100, "BTC/USD", 0.5, "satoshi")
+        buy2 = LimitBuyOrder(100, "BTC/USD", 0.25, "gmaxwell")
+        buy3 = LimitBuyOrder(100, "BTC/USD", 0.25, "mhearn")
+
+        # since all orders are for the same price, they should be matched in FIFO Order
+        self.book.execute(buy1)
+        self.book.execute(buy2)
+        self.book.execute(buy3)
+        self.book.execute(sell)
+
+        self.assertEquals(3, self.numOrdersExecuted())
+        [trade1, trade2, trade3] = self.trades
+        self.assertEquals(buy1.quantity, trade1.quantity)
+        self.assertEquals(buy1.trader_id, trade1.buyer_id)
+        self.assertEquals(buy2.quantity, trade2.quantity)
+        self.assertEquals(buy2.trader_id, trade2.buyer_id)
+        self.assertEquals(buy3.quantity, trade3.quantity)
+        self.assertEquals(buy3.trader_id, trade3.buyer_id)
+        
 
         # make sure all the orders were cleared out
         self.assertFalse(self.book.has_bids(), "The book should be empty")
