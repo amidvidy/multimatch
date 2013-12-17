@@ -1,16 +1,22 @@
 from __future__ import print_function
 
+import logging
+
 from collections import deque
 from rbtree import rbtree
 
 from trade import Trade
 from orders import LimitBuyOrder, LimitSellOrder
 
+# TODO: logging
+
 class OrderBook(object):
     def __init__(self, trade_callback=print):
+        
         self.trade_callback = trade_callback
-        self.bids = rbtree()
         self.asks = rbtree()
+        # reverse comparator
+        self.bids = rbtree(cmp=lambda x,y: y-x)
 
     def has_bids(self):
         return len(self.bids) > 0
@@ -19,7 +25,8 @@ class OrderBook(object):
         return len(self.asks) > 0
 
     def max_bid(self):
-        return self.bids.max()
+        # reverse comparator
+        return self.bids.min()
 
     def min_ask(self):
         return self.asks.min()
@@ -46,27 +53,45 @@ class OrderBook(object):
 
     def fill_bid(self, bid):
         # get any asks that match our bid
-        bids = (ask.item for ask in self.asks.iternodes() if ask.key <= bid.price)
+        askgen = (ask.item for ask in self.asks.iternodes() if ask.key <= bid.price)
         while bid.quantity:
             try:
-                (price, asks) = next(bids)
+                (price, asks) = next(askgen)
                 while asks:
                     # fill asks in the order they were submitted
                     ask = asks.popleft()
                     (ask, bid) = self.make_trade(ask, bid)
-                    if bid is None:
+                    if ask.quantity:
+                        # we filled our order
                         # put the partially filled ask back on the list
                         asks.appendleft(ask)
-                        # done
                         break
                 # remove empty nodes from the tree
                 del self.asks[price]
 
             except StopIteration:
+                # order is partially filled, return whatever is unfilled to add to the book
                 return bid
         
     def fill_ask(self, ask):
-        return ask
+        bidgen = (bid.item for bid in self.bids.iternodes() if bid.key >= ask.price)
+        while ask.quantity:
+            try:
+                (price, bids) = next(bidgen)
+                while bids:
+                    bid = bids.popleft()
+                    (ask, bid) = self.make_trade(ask, bid)
+                    if bid.quantity:
+                        # if we only partially filled their order, ours is filled
+                        # put the partially filled bid back on the list
+                        bids.appendleft(bid)
+                        break
+                # remove empty nodes from the tree
+                del self.bids[price]
+
+            except StopIteration:
+                # order is partiailly filled, return whatever is unfilled to add to the bock
+                return ask
 
     def make_trade(self, ask, bid):
         assert ask.price <= bid.price
@@ -76,13 +101,9 @@ class OrderBook(object):
         
         self.trade_callback(Trade(ask.symbol, quantity, ask.price, bid.trader_id, ask.trader_id))
 
-        if quantity == ask.quantity:
-            # Filled the ask
-            return (None, LimitBuyOrder(bid.price, bid.symbol, bid.quantity - quantity, bid.trader_id))
-        else:
-            # Filled the bid
-            return (LimitSellOrder(ask.price, ask.symbol, ask.quantity - quantity, ask.trader_id, None))
+        # return partials
+        return (LimitSellOrder(ask.price, ask.symbol, ask.quantity - quantity, ask.trader_id), 
+                LimitBuyOrder(bid.price, bid.symbol, bid.quantity - quantity, bid.trader_id))
 
     def execute(self, order):
         order.execute(self)
-        print(self.asks)
