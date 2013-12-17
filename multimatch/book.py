@@ -67,7 +67,8 @@ class OrderBook(object):
                         asks.appendleft(ask)
                         break
                 # remove empty nodes from the tree
-                del self.asks[price]
+                if not asks:
+                    del self.asks[price]
 
             except StopIteration:
                 # order is partially filled, return whatever is unfilled to add to the book
@@ -87,7 +88,8 @@ class OrderBook(object):
                         bids.appendleft(bid)
                         break
                 # remove empty nodes from the tree
-                del self.bids[price]
+                if not bids:
+                    del self.bids[price]
 
             except StopIteration:
                 # order is partiailly filled, return whatever is unfilled to add to the bock

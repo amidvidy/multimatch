@@ -2,6 +2,7 @@ import unittest
 
 from ..book import OrderBook
 from ..orders import LimitBuyOrder, LimitSellOrder
+from ..asset import make_symbol
 
 class OrderBookTest(unittest.TestCase):
     
@@ -11,70 +12,71 @@ class OrderBookTest(unittest.TestCase):
 
     def tearDown(self):
         self.book = None
+        self.trades = None
 
     def numOrdersExecuted(self):
         return len(self.trades)
 
     def testMatchBuyExact(self):
-        sell = LimitSellOrder(100, "BTC/USD", 1, "gavin")
-        buy = LimitBuyOrder(100, "BTC/USD", 1, "satoshi")
+        sell = LimitSellOrder(100, make_symbol('BTC', 'USD'), 1, 'gavin')
+        buy = LimitBuyOrder(100, make_symbol('BTC', 'USD'), 1, 'satoshi')
         
         # Execute Buy Order First
         self.book.execute(buy)
         self.book.execute(sell)
         self.assertEquals(1, self.numOrdersExecuted(), 
-                          "One trade should have been executed")
+                          'One trade should have been executed')
         [trade] = self.trades
         self.assertEquals(sell.symbol, trade.symbol,
-                          "The trade's symbol should be that of the sell order's symbol")
+                          'The trade\'s symbol should be that of the sell order\'s symbol')
         self.assertEquals(buy.symbol, trade.symbol,
-                          "The trade's symbol should be that of the buy order's symbol")
+                          'The trade\'s symbol should be that of the buy order\'s symbol')
         self.assertEquals(sell.trader_id, trade.seller_id,
-                          "The sell order's trader_id should be the seller_id of the trade")
+                          'The sell order\'s trader_id should be the seller_id of the trade')
         self.assertEquals(buy.trader_id, trade.buyer_id,
-                          "The buy order's trader_id should be the buyer_id of the trade")
+                          'The buy order\'s trader_id should be the buyer_id of the trade')
         self.assertEquals(sell.quantity, trade.quantity)
         self.assertEquals(buy.quantity, trade.quantity)
         self.assertEquals(sell.price, trade.price)
         self.assertEquals(buy.price, trade.price)
 
         # make sure all the orders were cleared out
-        self.assertFalse(self.book.has_bids(), "The book should be empty")
-        self.assertFalse(self.book.has_asks(), "The book should be empty")
+        self.assertFalse(self.book.has_bids(), 'The book should be empty')
+        self.assertFalse(self.book.has_asks(), 'The book should be empty')
 
     def testMatchSellExact(self):
-        sell = LimitSellOrder(100, "BTC/USD", 1, "gavin")
-        buy = LimitBuyOrder(100, "BTC/USD", 1, "satoshi")
+        sell = LimitSellOrder(100, 'BTC/USD', 1, 'gavin')
+        buy = LimitBuyOrder(100, 'BTC/USD', 1, 'satoshi')
 
         # Execute Sell Order First
         self.book.execute(sell)
         self.book.execute(buy)
         self.assertEquals(1, self.numOrdersExecuted(), 
-                          "One trade should have been executed")
+                          'One trade should have been executed')
         [trade] = self.trades
         self.assertEquals(sell.symbol, trade.symbol,
-                          "The trade's symbol should be that of the sell order's symbol")
+                          'The trade\'s symbol should be that of the sell order\'s symbol')
         self.assertEquals(buy.symbol, trade.symbol,
-                          "The trade's symbol should be that of the buy order's symbol")
+                          'The trade\'s symbol should be that of the buy order\'s symbol')
         self.assertEquals(sell.trader_id, trade.seller_id,
-                          "The sell order's trader_id should be the seller_id of the trade")
+                          'The sell order\'s trader_id should be the seller_id of the trade')
         self.assertEquals(buy.trader_id, trade.buyer_id,
-                          "The buy order's trader_id should be the buyer_id of the trade")
+                          'The buy order\'s trader_id should be the buyer_id of the trade')
         self.assertEquals(sell.quantity, trade.quantity)
         self.assertEquals(buy.quantity, trade.quantity)
         self.assertEquals(sell.price, trade.price)
         self.assertEquals(buy.price, trade.price)
 
         # make sure all the orders were cleared out
-        self.assertFalse(self.book.has_bids(), "The book should be empty")
-        self.assertFalse(self.book.has_asks(), "The book should be empty")
+        self.assertFalse(self.book.has_bids(), 'The book should be empty')
+        self.assertFalse(self.book.has_asks(), 'The book should be empty')
 
     def testMatchPartial(self):
         # One seller, multiple buyers. All orders should be matched.
-        sell = LimitSellOrder(100, "BTC/USD", 1, "gavin")
-        buy1 = LimitBuyOrder(100, "BTC/USD", 0.5, "satoshi")
-        buy2 = LimitBuyOrder(100, "BTC/USD", 0.25, "gmaxwell")
-        buy3 = LimitBuyOrder(100, "BTC/USD", 0.25, "mhearn")
+        sell = LimitSellOrder(100, make_symbol('BTC', 'USD'), 1, 'gavin')
+        buy1 = LimitBuyOrder(100, make_symbol('BTC', 'USD'), 0.5, 'satoshi')
+        buy2 = LimitBuyOrder(100, make_symbol('BTC', 'USD'), 0.25, 'gmaxwell')
+        buy3 = LimitBuyOrder(100, make_symbol('BTC', 'USD'), 0.25, 'mhearn')
 
         # since all orders are for the same price, they should be matched in FIFO Order
         self.book.execute(buy1)
@@ -93,5 +95,30 @@ class OrderBookTest(unittest.TestCase):
         
 
         # make sure all the orders were cleared out
-        self.assertFalse(self.book.has_bids(), "The book should be empty")
-        self.assertFalse(self.book.has_asks(), "The book should be empty")
+        self.assertFalse(self.book.has_bids(), 'The book should be empty')
+        self.assertFalse(self.book.has_asks(), 'The book should be empty')
+
+    def testMatchPartialUnfilled(self):
+        # One seller, one buyer. Buyer should be filled, seller should be partially filled
+        # Order should be filled at the sellers price since it is lower
+        
+        sell = LimitSellOrder(100, make_symbol('BTC', 'USD'), 1, 'gavin')
+        buy = LimitBuyOrder(150, make_symbol('BTC', 'USD'), 0.25, 'satoshi')
+
+        self.book.execute(sell)
+        self.book.execute(buy)
+
+        self.assertEquals(1, self.numOrdersExecuted())
+        [trade] = self.trades
+        self.assertEquals(make_symbol('BTC', 'USD'), trade.symbol)
+        self.assertEquals(buy.quantity, trade.quantity)
+        self.assertEquals(buy.trader_id, trade.buyer_id)
+        self.assertEquals(sell.trader_id, trade.seller_id)
+        # Order should be filled at the sellers price since it was on the book first
+        self.assertEquals(sell.price, trade.price)
+        print(self.book.asks)
+        self.assertTrue(self.book.has_asks(), 'There should still be an ask on the book')
+
+        self.assertFalse(self.book.has_bids(), 'There should be no bids')
+
+
