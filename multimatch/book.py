@@ -24,11 +24,13 @@ class OrderBook(object):
         book[key] = book.get(key, []) + [value]
 
     def add_bid(self, bid):
-        # some kind of assert here would be nice to keep the books from getting crossed
+        # Don't let the books get crossed
+        assert (not self.has_asks() or self.min_ask() > bid.price)
         self._add_entry(self.bids, bid.price, bid)
 
     def add_ask(self, ask):
         # ditto
+        assert (not self.has_bids() or self.man_bid() < ask.price)
         self._add_entry(self.asks, ask.price, ask)
 
     def execute(self, order):
