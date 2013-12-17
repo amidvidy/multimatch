@@ -33,7 +33,6 @@ class OrderBookTest(unittest.TestCase):
         self.assertEquals(sell.price, trade.price)
         self.assertEquals(buy.price, trade.price)
 
-        print(self.book.bids)
+        # make sure all the orders were cleared out
         self.assertFalse(self.book.has_bids(), "The book should be empty")
-        print(self.book.asks)
         self.assertFalse(self.book.has_asks(), "The book should be empty")
