@@ -10,11 +10,27 @@ class Order(object):
                                                                      self.symbol,
                                                                      self.quantity,
                                                                      self.trader_id)
-
     def execute(self, book):
         raise NotImplementedError("Order is abstract!")
 
-class MarketBuyOrder(Order):
+
+class SellOrder(Order):
+    def __init__(self, *args, **kwargs):
+        super(SellOrder, self).__init__(*args, **kwargs)
+    
+    def price_matches(self, price):
+        # A price matches a sell order if it is greater or equal to the asking price
+        return price >= self.price
+
+class BuyOrder(Order):
+    def __init__(self, *args, **kwargs):
+        super(BuyOrder, self).__init__(*args, **kwargs)
+        
+    def price_matches(self, price):
+        # A price matches a buy order if it is less than or equal to the bid price
+        return price <= self.price
+
+class MarketBuyOrder(BuyOrder):
     def __init__(self, *args, **kwargs):
         super(MarketBuyOrder, self).__init__(*args, **kwargs)
         self.price = float("inf")
@@ -22,7 +38,7 @@ class MarketBuyOrder(Order):
     def execute(self, book):
         book.fill_bid(self)
 
-class MarketSellOrder(Order):
+class MarketSellOrder(SellOrder):
     def __init__(self, *args, **kwargs):
         super(MarketSellOrder, self).__init__(*args, **kwargs)
         self.price = float("-inf")
@@ -30,7 +46,7 @@ class MarketSellOrder(Order):
     def execute(self, book):
         book.fill_ask(self)
 
-class LimitBuyOrder(Order):
+class LimitBuyOrder(BuyOrder):
     def __init__(self, price, *args, **kwargs):
         super(LimitBuyOrder, self).__init__(*args, **kwargs)
         self.price = price
@@ -38,7 +54,7 @@ class LimitBuyOrder(Order):
     def execute(self, book):
         book.add_bid(self)
 
-class LimitSellOrder(Order):
+class LimitSellOrder(SellOrder):
     def __init__(self, price, *args, **kwargs):
         super(LimitSellOrder, self).__init__(*args, **kwargs)
         self.price = price
