@@ -35,7 +35,7 @@ class OrderBook(object):
         return "BID: {0}, ASK: {1}".format(self.max_bid(), self.min_ask())
 
     def _add_entry(self, book, key, value):
-        logger.info("Adding to book - price:{0} order:{1}".format(key, value))
+        logger.debug("Adding to book - price:{0} order:{1}".format(key, value))
         entries = book.get(key, deque())
         entries.append(value)
         book[key] = entries
@@ -55,7 +55,7 @@ class OrderBook(object):
             self._add_entry(self.asks, remaining_ask.price, remaining_ask)
 
     def fill_bid(self, bid):
-        logger.info("Filling bid: {0}".format(bid))
+        logger.debug("Filling bid: {0}".format(bid))
         for (price, asks) in (ask.item for ask in self.asks.iternodes() if bid.price_matches(ask.key)):
             # remove the current node from the tree
             # current list of asks is not deleted since it is in scope, yay garbage collection
@@ -80,7 +80,7 @@ class OrderBook(object):
     # Logic is very similar to fill_bid
     # TODO: consolidate fill_bid and fill_ask into a generalized match method
     def fill_ask(self, ask):
-        logger.info("Filling ask: {0}".format(ask))
+        logger.debug("Filling ask: {0}".format(ask))
         for (price, bids) in (bid.item for bid in self.bids.iternodes() if ask.price_matches(bid.key)):
             # remove the current node from the tree
             del self.bids[price]
@@ -108,7 +108,7 @@ class OrderBook(object):
         quantity = min(ask.quantity, bid.quantity)
 
         trade = Trade(ask.symbol, quantity, price, bid.trader_id, ask.trader_id)
-        logger.info("Making trade: {0}".format(trade))
+        logger.debug("Making trade: {0}".format(trade))
         self.trade_callback(trade)
 
         # return partials
